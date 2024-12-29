@@ -2,6 +2,7 @@ import sys
 
 
 def main():
+    valid_commands = ['exit', 'echo', 'type']
     while True:
         sys.stdout.write("$ ")
         # Wait for user input
@@ -14,6 +15,11 @@ def main():
                 exit_shell(args[0])
             case 'echo':
                 print(f"{' '.join(args)}")
+            case 'type':
+                if args[0] in valid_commands:
+                    print(f"{args[0]} is a shell builtin")
+                else:
+                    print(f"{args[0]}: not found")
             case _:
                 print(f"{user_input}: command not found")
 
