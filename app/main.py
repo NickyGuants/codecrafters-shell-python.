@@ -1,8 +1,10 @@
+import os
 import sys
 
 
 def main():
     valid_commands = ['exit', 'echo', 'type']
+    path = os.environ.get("PATH")
     while True:
         sys.stdout.write("$ ")
         # Wait for user input
@@ -16,10 +18,22 @@ def main():
             case 'echo':
                 print(f"{' '.join(args)}")
             case 'type':
-                if args[0] in valid_commands:
-                    print(f"{args[0]} is a shell builtin")
+                cmd = args[0]
+                if cmd in valid_commands:
+                    print(f"{cmd} is a shell builtin")
                 else:
-                    print(f"{args[0]}: not found")
+                    found = False
+                    dirs = path.split(":")
+                    for directory in dirs:
+                        if not directory:
+                            continue
+                        cmd_path = os.path.join(directory, cmd)
+                        if os.path.isfile(cmd_path):
+                            found = True
+                            print(f"{cmd} is {cmd_path}")
+                            break
+                    if not found:
+                        print(f"{cmd}: not found")
             case _:
                 print(f"{user_input}: command not found")
 
