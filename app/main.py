@@ -4,7 +4,7 @@ import sys
 
 
 def main():
-    valid_commands = ['exit', 'echo', 'type']
+    builtin_commands = ['exit', 'echo', 'type', 'pwd']
     path = os.environ.get("PATH")
     dirs = path.split(":")
     while True:
@@ -22,7 +22,7 @@ def main():
                 print(f"{' '.join(args)}")
             case 'type':
                 cmd = args[0]
-                if cmd in valid_commands:
+                if cmd in builtin_commands:
                     print(f"{cmd} is a shell builtin")
                 else:
                     found = False
@@ -36,6 +36,8 @@ def main():
                             break
                     if not found:
                         print(f"{cmd}: not found")
+            case 'pwd':
+                print(os.getcwd())
             case _:
                 for directory in dirs:
                     if not directory:
