@@ -4,7 +4,7 @@ import sys
 
 
 def main():
-    builtin_commands = ['exit', 'echo', 'type', 'pwd']
+    builtin_commands = ['exit', 'echo', 'type', 'pwd', 'cd']
     path = os.environ.get("PATH")
     dirs = path.split(":")
     while True:
@@ -38,6 +38,12 @@ def main():
                         print(f"{cmd}: not found")
             case 'pwd':
                 print(os.getcwd())
+            case 'cd':
+                new_dir = ''.join(args)
+                if not os.path.isdir(new_dir):
+                    print(f"cd: {new_dir}: No such file or directory")
+                else:
+                    os.chdir(new_dir)
             case _:
                 for directory in dirs:
                     if not directory:
