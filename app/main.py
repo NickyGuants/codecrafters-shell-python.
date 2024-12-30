@@ -1,14 +1,17 @@
 import os
+import subprocess
 import sys
 
 
 def main():
     valid_commands = ['exit', 'echo', 'type']
     path = os.environ.get("PATH")
+    dirs = path.split(":")
     while True:
         sys.stdout.write("$ ")
         # Wait for user input
         user_input = input()
+        found = False
         # differentiate command from arguments
         command = user_input.split()[0]
         args = user_input.split()[1:]
@@ -23,7 +26,6 @@ def main():
                     print(f"{cmd} is a shell builtin")
                 else:
                     found = False
-                    dirs = path.split(":")
                     for directory in dirs:
                         if not directory:
                             continue
@@ -35,7 +37,25 @@ def main():
                     if not found:
                         print(f"{cmd}: not found")
             case _:
-                print(f"{user_input}: command not found")
+                for directory in dirs:
+                    if not directory:
+                        continue
+                    program_path = os.path.join(directory, command)
+                    if os.path.isfile(program_path):
+                        found = True
+                        full_command = [program_path] + args
+                        result = subprocess.run(
+                            full_command,
+                            text=True,  # Treat input/output as text
+                            capture_output=True  # Capture stdout/stderr
+                        )
+                        if result.stdout:
+                            print(result.stdout, end='')
+                        if result.stderr:
+                            print(result.stderr, end='', file=sys.stderr)
+                        break
+                if not found:
+                    print(f"{user_input}: command not found")
 
 
 def exit_shell(arg):
