@@ -40,10 +40,13 @@ def main():
                 print(os.getcwd())
             case 'cd':
                 new_dir = ''.join(args)
-                if not os.path.isdir(new_dir):
-                    print(f"cd: {new_dir}: No such file or directory")
+                if new_dir == '~':
+                    os.chdir(os.environ.get("HOME"))
                 else:
-                    os.chdir(new_dir)
+                    if not os.path.isdir(new_dir):
+                        print(f"cd: {new_dir}: No such file or directory")
+                    else:
+                        os.chdir(new_dir)
             case _:
                 for directory in dirs:
                     if not directory:
