@@ -77,9 +77,19 @@ def exit_shell(arg):
 
 
 def parse_input(user_input):
-    pattern = r'\'[^\']*\'|\S+'
+    pattern = r'\'[^\']*\'|"[^"\\]*(?:\\.[^"\\]*)*"|\S+'
     matches = re.findall(pattern, user_input)
-    return [arg.strip("'") for arg in matches]
+
+    processed_args = []
+    for arg in matches:
+        if arg.startswith('"'):
+            processed = arg[1:-1].replace('\\"', '"').replace('\\\\', '\\').replace('\\$', '$')
+            processed_args.append(processed)
+        elif arg.startswith("'"):
+            processed_args.append(arg[1:-1])
+        else:
+            processed_args.append(arg)
+    return processed_args
 
 
 if __name__ == "__main__":
