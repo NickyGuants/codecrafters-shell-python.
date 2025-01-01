@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import sys
 
@@ -10,11 +11,13 @@ def main():
     while True:
         sys.stdout.write("$ ")
         # Wait for user input
-        user_input = input()
+        user_input = input().strip()
         found = False
         # differentiate command from arguments
-        command = user_input.split()[0]
-        args = user_input.split()[1:]
+        parts = parse_input(user_input)
+        command = parts[0]
+        args = parts[1:] if len(parts) > 1 else []
+
         match command:
             case 'exit':
                 exit_shell(args[0])
@@ -71,6 +74,12 @@ def main():
 
 def exit_shell(arg):
     sys.exit(int(arg))
+
+
+def parse_input(user_input):
+    pattern = r'\'[^\']*\'|\S+'
+    matches = re.findall(pattern, user_input)
+    return [arg.strip("'") for arg in matches]
 
 
 if __name__ == "__main__":
