@@ -14,7 +14,7 @@ def main():
         user_input = input().strip()
         found = False
         # differentiate command from arguments
-        parts = parse_input(user_input)
+        parts = tokenize(user_input)
         command = parts[0]
         args = parts[1:] if len(parts) > 1 else []
 
@@ -76,20 +76,72 @@ def exit_shell(arg):
     sys.exit(int(arg))
 
 
-def parse_input(user_input):
-    pattern = r'\'[^\']*\'|"[^"\\]*(?:\\.[^"\\]*)*"|\S+'
-    matches = re.findall(pattern, user_input)
+def tokenize(input_line):
+    NORMAL = 0
+    IN_SINGLE_QUOTE = 1
+    IN_DOUBLE_QUOTE = 2
+    ESCAPE = 3
 
-    processed_args = []
-    for arg in matches:
-        if arg.startswith('"'):
-            processed = arg[1:-1].replace('\\"', '"').replace('\\\\', '\\').replace('\\$', '$')
-            processed_args.append(processed)
-        elif arg.startswith("'"):
-            processed_args.append(arg[1:-1])
-        else:
-            processed_args.append(arg)
-    return processed_args
+    tokens = []
+    current_token = []
+    state = NORMAL
+    escape_char = False
+
+    i = 0
+    while i < len(input_line):
+        char = input_line[i]
+
+        if state == NORMAL:
+            if char == '\\':
+                state = ESCAPE
+            elif char == "'":
+                state = IN_SINGLE_QUOTE
+            elif char == '"':
+                state = IN_DOUBLE_QUOTE
+            elif char.isspace():
+                if current_token:
+                    tokens.append(''.join(current_token))
+                    current_token = []
+            else:
+                current_token.append(char)
+
+        elif state == ESCAPE:
+            current_token.append(char)
+            state = NORMAL
+
+        elif state == IN_SINGLE_QUOTE:
+            if char == "'":
+                state = NORMAL
+            else:
+                current_token.append(char)
+
+        elif state == IN_DOUBLE_QUOTE:
+            if char == '\\':
+                i += 1
+                if i < len(input_line):
+                    next_char = input_line[i]
+                    # In double quotes, only certain characters can be escaped
+                    if next_char in ['\\', '"', '$', '`']:
+                        current_token.append(next_char)
+                    else:
+                        # Backslash remains
+                        current_token.append('\\')
+                        current_token.append(next_char)
+                else:
+                    # Backslash at end of string; treat as literal
+                    current_token.append('\\')
+            elif char == '"':
+                state = NORMAL
+            else:
+                current_token.append(char)
+
+        i += 1
+
+    # Append the last token if any
+    if current_token:
+        tokens.append(''.join(current_token))
+
+    return tokens
 
 
 if __name__ == "__main__":
