@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+import contextlib
 
 noclobber = False
 
@@ -99,7 +100,7 @@ def tokenize(input_line):
         i += 1
 
     if state in [IN_SINGLE_QUOTE, IN_DOUBLE_QUOTE]:
-        print("Error: unmatched quote detected")
+        print("Error: unmatched quote detected", file=sys.stderr)
         return []
 
     if current_token:
@@ -128,12 +129,12 @@ def parse_command(parts):
                 filename = parts[i + 1]
                 i += 1
             else:
-                print("Syntax error: no file specified for redirection")
+                print("Syntax error: no file specified for redirection", file=sys.stderr)
                 return ([], [])
 
             # Handle noclobber
             if operator == '>' and noclobber and os.path.exists(filename):
-                print(f"Error: {filename} already exists. Use '>|' to overwrite.")
+                print(f"Error: {filename} already exists. Use '>|' to overwrite.", file=sys.stderr)
                 redirections = []  # Clear redirections
                 break
 
@@ -147,21 +148,46 @@ def parse_command(parts):
 
 
 def handle_builtin(command, args, redirections):
-    match command:
-        case 'exit':
+    # Prepare redirection file handles
+    stdout = None
+    stderr = None
+    for redir in redirections:
+        fd, mode, filename = redir
+        try:
+            if fd == 1:
+                stdout = open(filename, mode)
+            elif fd == 2:
+                stderr = open(filename, mode)
+            else:
+                print(f"Error: Unsupported file descriptor {fd}", file=sys.stderr)
+                return
+        except IOError as e:
+            print(f"Redirection error: {e}", file=sys.stderr)
+            return
+
+    # Use context managers to redirect stdout and stderr
+    with contextlib.redirect_stdout(stdout if stdout else sys.stdout), \
+            contextlib.redirect_stderr(stderr if stderr else sys.stderr):
+        if command == 'exit':
             exit_shell(args)
-        case 'echo':
-            handle_echo(args, redirections)
-        case 'type':
+        elif command == 'echo':
+            handle_echo(args)
+        elif command == 'type':
             handle_type(args)
-        case 'pwd':
-            handle_pwd(redirections)
-        case 'cd':
+        elif command == 'pwd':
+            handle_pwd()
+        elif command == 'cd':
             handle_cd(args)
-        case 'set':
+        elif command == 'set':
             handle_set(args)
-        case _:
-            print(f"Unknown builtin command: {command}")
+        else:
+            print(f"Unknown builtin command: {command}", file=sys.stderr)
+
+    # Close redirection files if opened
+    if stdout:
+        stdout.close()
+    if stderr:
+        stderr.close()
 
 
 def exit_shell(args):
@@ -171,53 +197,24 @@ def exit_shell(args):
         try:
             status = int(args[0])
         except ValueError:
-            print("exit: numeric argument required")
+            print("exit: numeric argument required", file=sys.stderr)
             status = 1
     sys.exit(status)
 
 
-def handle_echo(args, redirections):
+def handle_echo(args):
     output = ' '.join(args)
-    if redirections:
-        for redir in redirections:
-            fd, mode, filename = redir
-            if fd == 1:
-                try:
-                    with open(filename, mode) as f:
-                        f.write(output + '\n')
-                except IOError as e:
-                    print(f"Redirection error: {e}", file=sys.stderr)
-            elif fd == 2:
-                # For simplicity, only handle stdout (fd=1) and stderr (fd=2)
-                print(f"echo: Unsupported file descriptor {fd}", file=sys.stderr)
-            else:
-                print(f"echo: Unsupported file descriptor {fd}", file=sys.stderr)
-    else:
-        print(output)
+    print(output)
 
 
-def handle_pwd(redirections):
+def handle_pwd():
     output = os.getcwd()
-    if redirections:
-        for redir in redirections:
-            fd, mode, filename = redir
-            if fd == 1:
-                try:
-                    with open(filename, mode) as f:
-                        f.write(output + '\n')
-                except IOError as e:
-                    print(f"Redirection error: {e}", file=sys.stderr)
-            elif fd == 2:
-                print(f"pwd: Unsupported file descriptor {fd}", file=sys.stderr)
-            else:
-                print(f"pwd: Unsupported file descriptor {fd}", file=sys.stderr)
-    else:
-        print(output)
+    print(output)
 
 
 def handle_type(args):
     if not args:
-        print("type: missing arguments")
+        print("type: missing arguments", file=sys.stderr)
         return
     path = os.environ.get("PATH", "")
     dirs = path.split(":")
@@ -240,24 +237,24 @@ def handle_type(args):
 
 def handle_cd(args):
     if len(args) > 1:
-        print("cd: too many arguments")
+        print("cd: too many arguments", file=sys.stderr)
     else:
         new_dir = os.path.expanduser(args[0]) if args else os.environ.get("HOME")
         new_dir = os.path.expandvars(new_dir)
         try:
             os.chdir(new_dir)
         except FileNotFoundError:
-            print(f"cd: {new_dir}: No such file or directory")
+            print(f"cd: {new_dir}: No such file or directory", file=sys.stderr)
         except NotADirectoryError:
-            print(f"cd: {new_dir}: Not a directory")
+            print(f"cd: {new_dir}: Not a directory", file=sys.stderr)
         except PermissionError:
-            print(f"cd: {new_dir}: Permission denied")
+            print(f"cd: {new_dir}: Permission denied", file=sys.stderr)
 
 
 def handle_set(args):
     global noclobber
     if not args:
-        print("set: missing arguments")
+        print("set: missing arguments", file=sys.stderr)
         return
     if args[0] == '-o' and len(args) >= 2:
         option = args[1]
@@ -265,16 +262,16 @@ def handle_set(args):
             noclobber = True
             print("noclobber option enabled")
         else:
-            print(f"set: unknown option {option}")
+            print(f"set: unknown option {option}", file=sys.stderr)
     elif args[0] == '+o' and len(args) >= 2:
         option = args[1]
         if option == 'noclobber':
             noclobber = False
             print("noclobber option disabled")
         else:
-            print(f"set: unknown option {option}")
+            print(f"set: unknown option {option}", file=sys.stderr)
     else:
-        print("set: invalid syntax")
+        print("set: invalid syntax", file=sys.stderr)
 
 
 def execute_external(command, args, redirections):
@@ -290,7 +287,7 @@ def execute_external(command, args, redirections):
             program_path = potential_path
             break
     if not program_path:
-        print(f"{command}: command not found")
+        print(f"{command}: command not found", file=sys.stderr)
         return
 
     # Prepare subprocess arguments
@@ -315,7 +312,7 @@ def execute_external(command, args, redirections):
 
     # Execute the command
     try:
-        result = subprocess.run(
+        subprocess.run(
             full_command,
             text=True,
             stdout=stdout if stdout else None,
@@ -326,11 +323,6 @@ def execute_external(command, args, redirections):
             stdout.close()
         if stderr:
             stderr.close()
-
-
-def handle_external_output(command, result, redirections):
-    # This function is no longer needed as redirection is handled via subprocess.run
-    pass
 
 
 if __name__ == "__main__":
