@@ -116,13 +116,17 @@ def parse_command(parts):
     while i < len(parts):
         token = parts[i]
         # Match redirection operators with optional file descriptors
-        redir_match = re.match(r'^(\d+)?(>|>\|)$', token)
+        redir_match = re.match(r'^(\d+)?(>>|>|>\|)$', token)
         if redir_match:
             fd = int(redir_match.group(1)) if redir_match.group(1) else 1  # Default to stdout
             operator = redir_match.group(2)
-            mode = 'w'  # Overwrite by default
+            # Determine the file mode based on the operator
             if operator == '>|':
                 mode = 'w'  # Force overwrite, ignoring noclobber
+            elif operator == '>>':
+                mode = 'a'  # Append mode
+            else:
+                mode = 'w'  # Overwrite by default
 
             # Next token should be the filename
             if i + 1 < len(parts):
